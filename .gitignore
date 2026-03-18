@@ -33,6 +33,7 @@ yarn-error.log*
 prisma/learn.db
 prisma/learn.db-journal
 prisma/learn.db-wal
+prisma/learn.db-shm
 
 # vercel
 .vercel
