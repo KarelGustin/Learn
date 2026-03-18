@@ -7,9 +7,7 @@ export async function getDomains() {
       tracks: {
         orderBy: { sortOrder: 'asc' },
         include: {
-          modules: {
-            orderBy: { sortOrder: 'asc' },
-          },
+          modules: { orderBy: { sortOrder: 'asc' } },
         },
       },
       _count: { select: { skills: true } },
@@ -27,9 +25,7 @@ export async function getDomainBySlug(slug: string) {
           modules: {
             orderBy: { sortOrder: 'asc' },
             include: {
-              units: {
-                orderBy: { sortOrder: 'asc' },
-              },
+              units: { orderBy: { sortOrder: 'asc' } },
             },
           },
         },
@@ -43,34 +39,17 @@ export async function getLesson(lessonId: string) {
     where: { id: lessonId },
     include: {
       exercises: { orderBy: { sortOrder: 'asc' } },
+      lessonSkills: { include: { skill: true } },
       unit: {
         include: {
           module: {
             include: {
-              track: {
-                include: { domain: true },
-              },
+              track: { include: { domain: true } },
             },
           },
-        },
-      },
-    },
-  })
-}
-
-export async function getLessonBySlug(slug: string) {
-  return prisma.lesson.findUnique({
-    where: { slug },
-    include: {
-      exercises: { orderBy: { sortOrder: 'asc' } },
-      unit: {
-        include: {
-          module: {
-            include: {
-              track: {
-                include: { domain: true },
-              },
-            },
+          lessons: {
+            select: { id: true, title: true, sortOrder: true },
+            orderBy: { sortOrder: 'asc' },
           },
         },
       },
@@ -79,16 +58,16 @@ export async function getLessonBySlug(slug: string) {
 }
 
 export async function getNextLesson() {
-  // Find the first lesson that has no completed submission
   const completedLessonIds = await prisma.submission.findMany({
     where: { completed: true },
     select: { lessonId: true },
+    distinct: ['lessonId'],
   }).then(subs => subs.map(s => s.lessonId))
 
   return prisma.lesson.findFirst({
-    where: {
-      id: { notIn: completedLessonIds.length > 0 ? completedLessonIds : ['_none_'] },
-    },
+    where: completedLessonIds.length > 0
+      ? { id: { notIn: completedLessonIds } }
+      : {},
     orderBy: [
       { unit: { module: { track: { domain: { sortOrder: 'asc' } } } } },
       { unit: { module: { track: { sortOrder: 'asc' } } } },
@@ -101,24 +80,11 @@ export async function getNextLesson() {
         include: {
           module: {
             include: {
-              track: {
-                include: { domain: true },
-              },
+              track: { include: { domain: true } },
             },
           },
         },
       },
-    },
-  })
-}
-
-export async function getLessonsForUnit(unitId: string) {
-  return prisma.lesson.findMany({
-    where: { unitId },
-    orderBy: { sortOrder: 'asc' },
-    include: {
-      exercises: { orderBy: { sortOrder: 'asc' } },
-      submissions: { where: { completed: true } },
     },
   })
 }
@@ -141,11 +107,10 @@ export async function getProjects() {
     orderBy: { createdAt: 'asc' },
     include: {
       milestones: { orderBy: { sortOrder: 'asc' } },
+      projectSkills: { include: { skill: true } },
       module: {
         include: {
-          track: {
-            include: { domain: true },
-          },
+          track: { include: { domain: true } },
         },
       },
     },
@@ -157,11 +122,10 @@ export async function getProject(projectId: string) {
     where: { id: projectId },
     include: {
       milestones: { orderBy: { sortOrder: 'asc' } },
+      projectSkills: { include: { skill: true } },
       module: {
         include: {
-          track: {
-            include: { domain: true },
-          },
+          track: { include: { domain: true } },
         },
       },
     },

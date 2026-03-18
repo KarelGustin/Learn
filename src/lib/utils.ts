@@ -6,11 +6,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function parseSkillIds(csv: string): string[] {
-  if (!csv || csv.trim() === '') return []
-  return csv.split(',').map(s => s.trim()).filter(Boolean)
-}
-
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return format(d, 'MMM d, yyyy')

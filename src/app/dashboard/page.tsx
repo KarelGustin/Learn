@@ -1,21 +1,22 @@
 import { getAnalyticsSummary, getStreak } from "@/services/analytics"
-import { getDomainMasteryOverview } from "@/services/mastery"
+import { getDomainMasteryOverview, getStrugglingSkills } from "@/services/mastery"
 import { getDueReviewCount } from "@/services/review"
 import { getNextLesson, getDomains } from "@/services/curriculum"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Flame, BookOpen, Target, RotateCcw, Clock, TrendingUp, Zap, ArrowRight } from "lucide-react"
+import { Flame, BookOpen, Target, RotateCcw, Clock, TrendingUp, Zap, ArrowRight, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
 export default async function DashboardPage() {
-  const [analytics, streak, domainMastery, dueReviews, nextLesson, domains] = await Promise.all([
+  const [analytics, streak, domainMastery, dueReviews, nextLesson, domains, struggles] = await Promise.all([
     getAnalyticsSummary(),
     getStreak(),
     getDomainMasteryOverview(),
     getDueReviewCount(),
     getNextLesson(),
     getDomains(),
+    getStrugglingSkills(),
   ])
 
   return (
@@ -200,6 +201,28 @@ export default async function DashboardPage() {
                 >
                   Start review session <ArrowRight className="h-3 w-3" />
                 </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Struggling Skills */}
+          {struggles.length > 0 && (
+            <Card className="border-red-600/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-400" />
+                  Needs Attention
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {struggles.slice(0, 3).map(s => (
+                    <div key={s.skillId} className="rounded-lg bg-red-600/5 border border-red-600/20 p-2">
+                      <p className="text-xs font-medium text-zinc-200">{s.skillName}</p>
+                      <p className="text-[10px] text-zinc-500">{s.reason}</p>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}

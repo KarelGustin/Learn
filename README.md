@@ -1,131 +1,143 @@
-# RoboLearn — Local-First Adaptive Robotics Learning Platform
+# RoboLearn
 
-A personal learning OS designed to take one highly motivated beginner from zero to robotics engineer and founder over 24 months through structured daily learning across software, electrical, mechanical, ML, RL, robotics systems, controls, simulation, and founder thinking.
+A local-first adaptive learning platform. 2-year structured path from beginner to robotics engineer and founder, covering software, EE, ME, ML, RL, controls, simulation, and product thinking.
 
-## Quick Start
+## Setup
+
+Prerequisites: Node.js 20+
 
 ```bash
-# Install dependencies
 npm install
-
-# Initialize database and seed curriculum
-npm run setup
-
-# Start the app
-npm run dev
+npm run setup    # creates SQLite database + seeds curriculum
+npm run dev      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access your dashboard.
+That's it. No database server, no cloud services, no accounts.
+
+## What It Does
+
+**Adaptive daily learning** across 9 robotics engineering domains. The engine tracks mastery per skill (0-5), detects struggles, schedules spaced repetition reviews, and generates a personalized daily plan that balances new material, weak-area repair, project work, and reflection.
+
+### Core Systems
+
+| System | What it does |
+|--------|-------------|
+| Mastery Engine | Bayesian confidence tracking per skill with difficulty-weighted scoring, velocity tracking, and time decay |
+| Spaced Repetition | SM-2 with leech detection and reset counting. Items that repeatedly fail get flagged |
+| Struggle Detector | Flags skills with consecutive failures, low confidence, or stalled progress. Feeds remediation into daily plans |
+| Daily Planner | Allocates time across overdue reviews, new lessons, struggle repairs, project milestones, and reflection |
+| Prerequisite Graph | DAG of skill dependencies with topological ordering and remediation path traversal |
+
+### Pages
+
+| Page | Purpose |
+|------|---------|
+| `/dashboard` | Today's mission: streak, stats, next lesson, domain progress, struggle alerts |
+| `/curriculum` | Full curriculum map — 9 domains, 29 tracks, 20 modules, drill-down navigation |
+| `/learn/[id]` | Lesson player — markdown with math (KaTeX), syntax highlighting, interactive exercises |
+| `/skills` | All 45 skills grouped by domain with mastery levels and dependency counts |
+| `/projects` | 6 projects with milestone checklists and progress bars |
+| `/review` | Spaced repetition session — flashcard UI with 0-5 grading |
+| `/journal` | Structured daily reflections — mood, wins, struggles, key insights |
+| `/analytics` | Charts: weekly study time, lessons/reviews per week, domain mastery bars |
+| `/founder` | 104 weekly prompts connecting technical learning to startup thinking |
+| `/settings` | Display name, daily goal, database info |
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 14 (App Router) |
-| Database | SQLite (via Prisma) |
-| ORM | Prisma 5 |
-| Styling | Tailwind CSS + shadcn/ui |
-| Charts | Recharts |
-| Content | Markdown + KaTeX (math) |
-| Icons | Lucide React |
-| State | Zustand |
+- **Next.js 14** (App Router, Server Components, Server Actions)
+- **SQLite** via Prisma 5 — single-file database, zero config
+- **Tailwind CSS** + shadcn/ui — dark mode, engineering dashboard aesthetic
+- **Recharts** — weekly activity and progress charts
+- **Zod** — input validation on all API routes
+- **react-markdown** + KaTeX + rehype-highlight — lesson content rendering
 
-## Features
-
-### Core Learning System
-- **9 learning domains**: Software, EE, ME, ML, RL, Robotics, Controls, Simulation, Founder
-- **29 tracks** across all domains with structured progression
-- **Lesson player** with markdown content, syntax highlighting, and math rendering
-- **Interactive exercises**: multiple choice, true/false, short answer, code challenges
-- **Projects** with milestone tracking
-
-### Adaptive Engine
-- **Mastery tracking** (0-5 levels) per skill with Bayesian confidence
-- **Spaced repetition** (SM-2 algorithm) for knowledge retention
-- **Struggle detection** — identifies weak skills and suggests remediation
-- **Acceleration logic** — skips ahead when you master concepts quickly
-- **Daily planner** — generates adaptive daily plans based on your progress
-
-### Analytics & Reflection
-- **Skill graph** — visual map of all skills with mastery levels and dependencies
-- **Analytics dashboard** — time invested, accuracy, streaks, domain distribution
-- **Reflection journal** — structured daily reflections with mood tracking
-- **Founder prompts** — weekly business/product thinking prompts (104 weeks)
-
-### Design
-- Dark mode engineering dashboard aesthetic
-- Clean, premium UI with strong information hierarchy
-- Responsive layout with persistent sidebar navigation
-
-## Project Structure
+## Architecture
 
 ```
 prisma/
-  schema.prisma          # Database schema (21 tables)
-  seed/                  # Seed data with real robotics curriculum
+  schema.prisma              # 23 models, junction tables, proper indexes
+  seed/                      # Real robotics curriculum (not placeholder data)
+    index.ts                 # Orchestrator
+    domains.ts               # 9 domains
+    tracks.ts                # 29 tracks
+    modules.ts               # 20 modules
+    units.ts                 # 26 units
+    lessons.ts               # 11 lessons with full markdown content
+    exercises.ts             # 14 exercises with answers + explanations
+    skills.ts                # 45 skills + 30 dependency edges + mastery records
+    projects.ts              # 6 projects with milestones + skill junctions
+    founder-prompts.ts       # 104 weekly prompts
+
 src/
-  app/                   # Next.js App Router pages
-    dashboard/           # Main mission control dashboard
-    curriculum/          # Curriculum map and drill-down
-    learn/[lessonId]/    # Lesson player
-    skills/              # Skill dependency graph
-    projects/            # Project hub
-    review/              # Spaced repetition center
-    journal/             # Reflection journal
-    analytics/           # Progress analytics
-    founder/             # Founder thinking prompts
-    settings/            # User preferences
-    api/                 # API routes for mutations
-  components/            # Reusable UI components
-  engine/                # Pure-function adaptive algorithms
-    mastery.ts           # Mastery calculation
-    spaced-repetition.ts # SM-2 algorithm
-    daily-planner.ts     # Adaptive plan generation
-    struggle-detector.ts # Weak skill detection
-    prerequisite.ts      # Skill dependency graph traversal
-    scoring.ts           # Performance scoring heuristics
-  services/              # Database access layer
-  lib/                   # Utilities, DB client
-  types/                 # Shared TypeScript types
+  engine/                    # Pure functions, no side effects, unit-testable
+    mastery.ts               # Level calc, Bayesian confidence, velocity, remediation/acceleration signals
+    spaced-repetition.ts     # SM-2 with leech detection
+    daily-planner.ts         # Budget allocation across item types
+    struggle-detector.ts     # Multi-signal struggle identification
+    prerequisite.ts          # DAG operations: unlock check, remediation paths, topological sort
+    scoring.ts               # Daily score, momentum, retention health
+
+  services/                  # Database layer — reads/writes, calls engine functions
+    curriculum.ts            # Domain/track/module/unit/lesson/project queries
+    mastery.ts               # Attempt recording, mastery updates, struggle detection
+    review.ts                # SM-2 grading, due items, review stats
+    planner.ts               # Daily plan generation integrating all engines
+    analytics.ts             # Streak tracking, aggregated metrics, weekly activity
+    journal.ts               # Reflections, founder prompts, user settings
+    ai-service.ts            # Interface + stub for future AI integration
+
+  lib/
+    db.ts                    # Prisma singleton
+    utils.ts                 # cn(), date helpers, mastery labels
+    validations.ts           # Zod schemas for all API inputs
+
+  app/
+    api/                     # 6 validated API routes
+    dashboard/               # Mission control
+    curriculum/              # Curriculum browser with dynamic domain pages
+    learn/[lessonId]/        # Lesson player with exercise runner
+    (+ skills, projects, review, journal, analytics, founder, settings)
+    loading.tsx              # Skeleton loading state
+    error.tsx                # Error boundary with recovery
+    not-found.tsx            # 404 page
 ```
 
-## Available Scripts
+## Database Schema
+
+23 models with proper relationships, indexes, and cascade deletes:
+
+- **Curriculum**: Domain → Track → Module → Unit → Lesson → Exercise
+- **Skills**: Skill ← SkillDependency (DAG), LessonSkill (junction), ProjectSkill (junction)
+- **Progress**: MasteryRecord (per-skill), Attempt (per-exercise), Submission (per-lesson)
+- **Review**: ReviewItem (SM-2 state + reset counter)
+- **Planning**: DailyPlan → DailyPlanItem (with reason field explaining why each item was assigned)
+- **Tracking**: StudySession (with domain relation), Streak
+- **Reflection**: ReflectionEntry (with FounderPrompt relation), FounderPrompt
+
+## Scripts
 
 ```bash
-npm run dev          # Start development server
+npm run dev          # Development server at localhost:3000
 npm run build        # Production build
-npm run setup        # Initialize DB + seed data
-npm run db:push      # Push schema to database
-npm run db:seed      # Run seed script
-npm run db:studio    # Open Prisma Studio (DB browser)
+npm run setup        # Push schema + seed database
+npm run db:push      # Push schema changes without seeding
+npm run db:seed      # Seed data only
+npm run db:studio    # Prisma Studio — visual database browser
 ```
 
-## Data & Backup
+## Backup
 
-Your entire learning history is stored in `prisma/learn.db`. To back up, simply copy this file. The database is portable — move it to any machine with the same app installed.
+Everything lives in `prisma/learn.db`. Copy this file to back up your entire learning history.
 
-## AI Integration (Future)
+## AI Integration
 
-The app includes an `AIService` interface (`src/services/ai-service.ts`) with stub implementations. To add AI-powered features:
+`src/services/ai-service.ts` defines an `AIService` interface with methods for concept explanation, hint generation, freeform answer assessment, next-step suggestion, and reflection analysis. The current implementation is a no-op stub. Swap in Ollama, Claude API, or OpenAI by implementing the interface — no other code changes needed.
 
-1. Implement the `AIService` interface with your preferred provider (Ollama, Claude, OpenAI)
-2. Replace the `StubAIService` singleton
-3. AI can power: hint generation, concept explanations, reflection analysis, learning path refinement
+## Curriculum
 
-## Curriculum Coverage (2-Year Path)
+**Year 1**: Python, Linux, Git, C++, linear algebra, calculus, circuits, sensors, motors, microcontrollers, ROS2, simulation, first control systems, integrated projects.
 
-**Year 1: Foundations**
-- Python, Linux, Git, C++
-- Math (linear algebra, calculus)
-- Circuit fundamentals, sensors, motors
-- Embedded systems, microcontrollers
-- ROS2 basics, simulation
-- First control systems and projects
+**Year 2**: Kinematics, dynamics, motion planning, computer vision, PyTorch, reinforcement learning, sim-to-real, SLAM, system integration, founder thinking, capstone MVP.
 
-**Year 2: Advanced Robotics**
-- Kinematics, dynamics, motion planning
-- Computer vision, ML, deep learning
-- Reinforcement learning, sim-to-real
-- Full-stack robotics integration
-- Founder/product thinking
-- Capstone robotics MVP
+9 domains. 29 tracks. 104 weeks of founder prompts. Content is seeded with real robotics engineering material — not lorem ipsum.

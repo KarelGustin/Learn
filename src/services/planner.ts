@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { generateDailyPlan } from '@/engine/daily-planner'
+import { getStrugglingSkills } from '@/services/mastery'
 import type { PlanCandidate } from '@/types'
 import { todayISO } from '@/lib/utils'
 
@@ -8,9 +9,7 @@ export async function getTodaysPlan() {
 
   let plan = await prisma.dailyPlan.findUnique({
     where: { date: today },
-    include: {
-      items: { orderBy: { sortOrder: 'asc' } },
-    },
+    include: { items: { orderBy: { sortOrder: 'asc' } } },
   })
 
   if (!plan) {
@@ -23,27 +22,30 @@ export async function getTodaysPlan() {
 export async function generateAndSavePlan(date?: string) {
   const targetDate = date || todayISO()
 
-  // Get user settings
+  // Delete existing plan for this date if regenerating
+  await prisma.dailyPlan.deleteMany({ where: { date: targetDate } })
+
   const settings = await prisma.userSettings.findFirst()
   const dailyGoal = settings?.dailyGoalMinutes || 90
 
-  // Get overdue reviews
+  // 1. Overdue reviews
   const dueReviews = await prisma.reviewItem.findMany({
     where: { nextReview: { lte: new Date() } },
+    orderBy: { nextReview: 'asc' },
     take: 10,
   })
 
-  const overdueReviews: PlanCandidate[] = dueReviews.map(r => ({
+  const overdueReviews: PlanCandidate[] = dueReviews.map((r, i) => ({
     type: 'REVIEW',
     referenceId: r.id,
-    title: r.question.substring(0, 80),
+    title: r.question.length > 80 ? r.question.substring(0, 77) + '...' : r.question,
     description: 'Spaced repetition review',
-    estimatedMinutes: 5,
-    priority: 10,
-    reason: 'Due for review to maintain retention',
+    estimatedMinutes: 3,
+    priority: 10 - i,
+    reason: `Due for review — last interval was ${r.interval} days`,
   }))
 
-  // Get next uncompleted lessons
+  // 2. Next uncompleted lessons
   const completedIds = await prisma.submission.findMany({
     where: { completed: true },
     select: { lessonId: true },
@@ -68,13 +70,25 @@ export async function generateAndSavePlan(date?: string) {
     type: 'LESSON',
     referenceId: l.id,
     title: l.title,
-    description: `${l.unit.module.track.domain.name} > ${l.unit.module.name}`,
+    description: `${l.unit.module.track.domain.name} — ${l.unit.module.name}`,
     estimatedMinutes: l.estimatedMinutes,
     priority: 8 - i,
-    reason: `Next lesson in ${l.unit.module.track.name} curriculum`,
+    reason: `Next lesson in ${l.unit.module.track.name}`,
   }))
 
-  // Get active projects
+  // 3. Struggle repairs (actually integrated now)
+  const struggles = await getStrugglingSkills()
+  const struggleRepairs: PlanCandidate[] = struggles.slice(0, 3).map((s, i) => ({
+    type: 'EXERCISE',
+    referenceId: s.skillId,
+    title: `Repair: ${s.skillName}`,
+    description: s.reason,
+    estimatedMinutes: 10,
+    priority: 9 - i,
+    reason: s.suggestedAction,
+  }))
+
+  // 4. Active projects
   const projects = await prisma.project.findMany({
     include: {
       milestones: {
@@ -98,16 +112,25 @@ export async function generateAndSavePlan(date?: string) {
       reason: 'Active project milestone',
     }))
 
-  // Reflection prompt
-  const reflectionPrompts: PlanCandidate[] = [{
+  // 5. Reflection
+  const lastReflection = await prisma.reflectionEntry.findFirst({
+    orderBy: { createdAt: 'desc' },
+  })
+  const daysSinceReflection = lastReflection
+    ? (Date.now() - lastReflection.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+    : 999
+
+  const reflectionPrompts: PlanCandidate[] = daysSinceReflection >= 1 ? [{
     type: 'REFLECTION',
     referenceId: 'daily',
     title: 'Daily Reflection',
     description: 'What did you learn today? What was challenging?',
     estimatedMinutes: 5,
     priority: 2,
-    reason: 'End-of-day consolidation and self-assessment',
-  }]
+    reason: daysSinceReflection >= 3
+      ? `No reflection in ${Math.floor(daysSinceReflection)} days`
+      : 'End-of-day knowledge consolidation',
+  }] : []
 
   const result = generateDailyPlan({
     config: {
@@ -118,13 +141,12 @@ export async function generateAndSavePlan(date?: string) {
     },
     overdueReviews,
     nextLessons: lessonCandidates,
-    struggleRepairs: [],
+    struggleRepairs,
     projectWork,
     reflectionPrompts,
     recentDomainMinutes: {},
   })
 
-  // Save to database
   const plan = await prisma.dailyPlan.create({
     data: {
       date: targetDate,
@@ -142,9 +164,7 @@ export async function generateAndSavePlan(date?: string) {
         })),
       },
     },
-    include: {
-      items: { orderBy: { sortOrder: 'asc' } },
-    },
+    include: { items: { orderBy: { sortOrder: 'asc' } } },
   })
 
   return plan
@@ -153,10 +173,7 @@ export async function generateAndSavePlan(date?: string) {
 export async function completePlanItem(planItemId: string) {
   return prisma.dailyPlanItem.update({
     where: { id: planItemId },
-    data: {
-      status: 'COMPLETED',
-      completedAt: new Date(),
-    },
+    data: { status: 'COMPLETED', completedAt: new Date() },
   })
 }
 

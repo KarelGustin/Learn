@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { updateMastery as calcMastery } from '@/engine/mastery'
-import type { DifficultyTier } from '@/types'
+import { detectStruggles } from '@/engine/struggle-detector'
+import type { DifficultyTier, StruggleReport } from '@/types'
 
 export async function getMasteryRecords() {
   return prisma.masteryRecord.findMany({
@@ -52,7 +53,6 @@ export async function recordAttemptAndUpdateMastery(
   hints: number,
   selfConfidence: number
 ) {
-  // Record the attempt
   const attempt = await prisma.attempt.create({
     data: {
       exerciseId,
@@ -64,15 +64,12 @@ export async function recordAttemptAndUpdateMastery(
     },
   })
 
-  // Get exercise to find associated skill
   const exercise = await prisma.exercise.findUnique({
     where: { id: exerciseId },
-    include: { skill: true },
   })
 
   if (!exercise?.skillId) return attempt
 
-  // Get or create mastery record
   let mastery = await prisma.masteryRecord.findUnique({
     where: { skillId: exercise.skillId },
   })
@@ -83,7 +80,6 @@ export async function recordAttemptAndUpdateMastery(
     })
   }
 
-  // Calculate updated mastery
   const result = calcMastery(
     {
       level: mastery.level,
@@ -92,7 +88,9 @@ export async function recordAttemptAndUpdateMastery(
       correctAttempts: mastery.correctAttempts,
       streakCorrect: mastery.streakCorrect,
       streakWrong: mastery.streakWrong,
+      velocity: mastery.velocity,
       lastPracticed: mastery.lastPracticed,
+      lastLevelChange: mastery.lastLevelChange,
     },
     {
       skillId: exercise.skillId,
@@ -104,7 +102,6 @@ export async function recordAttemptAndUpdateMastery(
     }
   )
 
-  // Update mastery record
   await prisma.masteryRecord.update({
     where: { skillId: exercise.skillId },
     data: {
@@ -114,6 +111,7 @@ export async function recordAttemptAndUpdateMastery(
       correctAttempts: result.correctAttempts,
       streakCorrect: result.streakCorrect,
       streakWrong: result.streakWrong,
+      velocity: result.velocity,
       lastPracticed: new Date(),
       lastLevelChange: result.levelChanged ? new Date() : mastery.lastLevelChange,
     },
@@ -122,8 +120,29 @@ export async function recordAttemptAndUpdateMastery(
   return attempt
 }
 
+export async function getStrugglingSkills(): Promise<StruggleReport[]> {
+  const records = await prisma.masteryRecord.findMany({
+    where: { totalAttempts: { gt: 0 } },
+    include: { skill: true },
+  })
+
+  return detectStruggles(
+    records.map(r => ({
+      skillId: r.skillId,
+      skillName: r.skill.name,
+      level: r.level,
+      confidence: r.confidence,
+      totalAttempts: r.totalAttempts,
+      correctAttempts: r.correctAttempts,
+      streakWrong: r.streakWrong,
+      lastPracticed: r.lastPracticed,
+      lastLevelChange: r.lastLevelChange,
+    }))
+  )
+}
+
 export async function getSkillsWithMastery() {
-  const skills = await prisma.skill.findMany({
+  return prisma.skill.findMany({
     include: {
       domain: true,
       masteryRecord: true,
@@ -132,5 +151,4 @@ export async function getSkillsWithMastery() {
     },
     orderBy: { name: 'asc' },
   })
-  return skills
 }

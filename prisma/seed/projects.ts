@@ -9,7 +9,7 @@ async function seedProjects(prisma: any) {
       difficulty: 'INTRODUCTORY',
       estimatedHours: 3,
       isCapstone: false,
-      skillIds: 'skill_py_variables,skill_py_math,skill_py_control_flow,skill_py_functions',
+      skillIds: ['skill_py_variables', 'skill_py_math', 'skill_py_control_flow', 'skill_py_functions'],
       milestones: [
         { name: 'Basic arithmetic operations (+, -, *, /)', description: 'Accept two numbers and an operator, compute and display result' },
         { name: 'Input validation and error handling', description: 'Handle division by zero, invalid input gracefully' },
@@ -26,7 +26,7 @@ async function seedProjects(prisma: any) {
       difficulty: 'FOUNDATIONAL',
       estimatedHours: 5,
       isCapstone: false,
-      skillIds: 'skill_py_functions,skill_py_data_structures,skill_py_file_io',
+      skillIds: ['skill_py_functions', 'skill_py_data_structures', 'skill_py_file_io'],
       milestones: [
         { name: 'Generate simulated sensor readings', description: 'Create functions that simulate temperature, distance, and IMU data with noise' },
         { name: 'CSV logging with timestamps', description: 'Write sensor data to CSV with ISO timestamps' },
@@ -44,7 +44,7 @@ async function seedProjects(prisma: any) {
       difficulty: 'FOUNDATIONAL',
       estimatedHours: 4,
       isCapstone: false,
-      skillIds: 'skill_ee_ohms_law,skill_ee_circuits,skill_py_functions',
+      skillIds: ['skill_ee_ohms_law', 'skill_ee_circuits', 'skill_py_functions'],
       milestones: [
         { name: 'Series resistance calculator', description: 'Compute total resistance and current for series circuits' },
         { name: 'Parallel resistance calculator', description: 'Compute equivalent resistance for parallel networks' },
@@ -61,7 +61,7 @@ async function seedProjects(prisma: any) {
       difficulty: 'INTERMEDIATE',
       estimatedHours: 8,
       isCapstone: true,
-      skillIds: 'skill_py_oop,skill_py_math,skill_math_vectors,skill_ctrl_pid',
+      skillIds: ['skill_py_oop', 'skill_py_math', 'skill_math_vectors', 'skill_ctrl_pid'],
       milestones: [
         { name: 'Robot class with position and heading', description: 'Define Robot with x, y, theta state and move/turn methods' },
         { name: 'Simulated environment with walls', description: 'Create a 2D grid world with obstacles' },
@@ -79,7 +79,7 @@ async function seedProjects(prisma: any) {
       difficulty: 'INTERMEDIATE',
       estimatedHours: 10,
       isCapstone: false,
-      skillIds: 'skill_ee_motors,skill_ee_microcontroller,skill_ctrl_pid',
+      skillIds: ['skill_ee_motors', 'skill_ee_microcontroller', 'skill_ctrl_pid'],
       milestones: [
         { name: 'Basic motor spinning with PWM', description: 'Drive a DC motor at variable speed using PWM' },
         { name: 'Direction control with H-bridge', description: 'Add forward/reverse using an L298N or similar' },
@@ -97,7 +97,7 @@ async function seedProjects(prisma: any) {
       difficulty: 'INTERMEDIATE',
       estimatedHours: 6,
       isCapstone: false,
-      skillIds: 'skill_math_calculus,skill_sim_physics,skill_ctrl_pid,skill_py_oop',
+      skillIds: ['skill_math_calculus', 'skill_sim_physics', 'skill_ctrl_pid', 'skill_py_oop'],
       milestones: [
         { name: 'Simple pendulum dynamics', description: 'Implement the pendulum ODE: θ\'\' = -(g/L)sin(θ)' },
         { name: 'Euler integration', description: 'Simulate with timestep-based numerical integration' },
@@ -108,12 +108,23 @@ async function seedProjects(prisma: any) {
   ];
 
   for (const proj of projects) {
-    const { milestones, ...projectData } = proj;
+    const { milestones, skillIds, ...projectData } = proj;
     await prisma.project.upsert({
       where: { slug: proj.slug },
       update: projectData,
       create: projectData,
     });
+
+    // Create ProjectSkill junction records
+    for (const skillId of skillIds) {
+      await prisma.projectSkill.upsert({
+        where: {
+          projectId_skillId: { projectId: proj.id, skillId },
+        },
+        update: {},
+        create: { projectId: proj.id, skillId },
+      });
+    }
 
     for (let i = 0; i < milestones.length; i++) {
       const msId = `${proj.id}_ms_${i + 1}`;

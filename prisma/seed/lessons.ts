@@ -44,7 +44,7 @@ Every sensor reading, motor command, and state variable in your robot software i
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 10,
-      skillIds: 'skill_py_variables',
+      skillIds: ['skill_py_variables'],
     },
     {
       id: 'les_py_numbers',
@@ -94,7 +94,7 @@ count = int(3.9)                 # float -> int (truncates to 3)
       contentFormat: 'MARKDOWN',
       sortOrder: 2,
       estimatedMinutes: 12,
-      skillIds: 'skill_py_variables,skill_py_math',
+      skillIds: ['skill_py_variables', 'skill_py_math'],
     },
     {
       id: 'les_py_strings',
@@ -135,7 +135,7 @@ ROS topics, sensor data parsing, log messages, and serial communication all invo
       contentFormat: 'MARKDOWN',
       sortOrder: 3,
       estimatedMinutes: 10,
-      skillIds: 'skill_py_variables',
+      skillIds: ['skill_py_variables'],
     },
     // PYTHON - Control Flow
     {
@@ -203,7 +203,7 @@ elif state == "RETURNING":
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 15,
-      skillIds: 'skill_py_control_flow',
+      skillIds: ['skill_py_control_flow'],
     },
     {
       id: 'les_py_loops',
@@ -270,7 +270,7 @@ while not shutdown_requested:
       contentFormat: 'MARKDOWN',
       sortOrder: 2,
       estimatedMinutes: 15,
-      skillIds: 'skill_py_control_flow',
+      skillIds: ['skill_py_control_flow'],
     },
     // PYTHON - Functions
     {
@@ -334,7 +334,7 @@ x, y, heading = get_robot_pose()
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 15,
-      skillIds: 'skill_py_functions',
+      skillIds: ['skill_py_functions'],
     },
     // LINUX
     {
@@ -389,7 +389,7 @@ tail -f ros.log    # Follow a log file (live)
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 15,
-      skillIds: 'skill_linux_terminal',
+      skillIds: ['skill_linux_terminal'],
     },
     // GIT
     {
@@ -446,7 +446,7 @@ __pycache__/
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 12,
-      skillIds: 'skill_git_basics',
+      skillIds: ['skill_git_basics'],
     },
     // ELECTRICAL - Ohm's Law
     {
@@ -493,7 +493,7 @@ Every sensor, motor driver, and microcontroller in your robot obeys Ohm's Law. Y
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 15,
-      skillIds: 'skill_ee_ohms_law',
+      skillIds: ['skill_ee_ohms_law'],
     },
     {
       id: 'les_ee_series_parallel',
@@ -531,7 +531,7 @@ Example: Convert 5V sensor output to 3.3V for a microcontroller:
       contentFormat: 'MARKDOWN',
       sortOrder: 2,
       estimatedMinutes: 15,
-      skillIds: 'skill_ee_ohms_law,skill_ee_circuits',
+      skillIds: ['skill_ee_ohms_law', 'skill_ee_circuits'],
     },
     // MATH - Vectors
     {
@@ -584,16 +584,28 @@ Robot positions, velocities, forces, and sensor readings are all vectors. Unders
       contentFormat: 'MARKDOWN',
       sortOrder: 1,
       estimatedMinutes: 20,
-      skillIds: 'skill_math_vectors',
+      skillIds: ['skill_math_vectors'],
     },
   ];
 
   for (const lesson of lessons) {
+    const { skillIds, ...lessonData } = lesson;
     await prisma.lesson.upsert({
       where: { slug: lesson.slug },
-      update: lesson,
-      create: lesson,
+      update: lessonData,
+      create: lessonData,
     });
+
+    // Create LessonSkill junction records
+    for (const skillId of skillIds) {
+      await prisma.lessonSkill.upsert({
+        where: {
+          lessonId_skillId: { lessonId: lesson.id, skillId },
+        },
+        update: {},
+        create: { lessonId: lesson.id, skillId },
+      });
+    }
   }
 
   console.log(`  ✓ Seeded ${lessons.length} lessons`);

@@ -2,22 +2,16 @@ import { prisma } from '@/lib/db'
 import { gradeReview } from '@/engine/spaced-repetition'
 
 export async function getDueReviews(limit: number = 20) {
-  const now = new Date()
-  const reviews = await prisma.reviewItem.findMany({
-    where: {
-      nextReview: { lte: now },
-    },
+  return prisma.reviewItem.findMany({
+    where: { nextReview: { lte: new Date() } },
     orderBy: { nextReview: 'asc' },
     take: limit,
   })
-  return reviews
 }
 
 export async function getDueReviewCount() {
   return prisma.reviewItem.count({
-    where: {
-      nextReview: { lte: new Date() },
-    },
+    where: { nextReview: { lte: new Date() } },
   })
 }
 
@@ -28,17 +22,13 @@ export async function submitReviewGrade(reviewItemId: string, grade: 0 | 1 | 2 |
 
   if (!item) throw new Error('Review item not found')
 
-  // Count resets for leech detection
-  const resetCount = item.repetition === 0 && item.lastReview ? 1 : 0
+  // Increment reset count if the user failed (grade < 3 resets repetition)
+  const newResetCount = grade < 3 ? item.resetCount + 1 : item.resetCount
 
   const result = gradeReview(
-    {
-      interval: item.interval,
-      repetition: item.repetition,
-      efactor: item.efactor,
-    },
+    { interval: item.interval, repetition: item.repetition, efactor: item.efactor },
     grade,
-    resetCount
+    newResetCount
   )
 
   return prisma.reviewItem.update({
@@ -49,6 +39,7 @@ export async function submitReviewGrade(reviewItemId: string, grade: 0 | 1 | 2 |
       efactor: result.efactor,
       nextReview: result.nextReview,
       lastReview: new Date(),
+      resetCount: newResetCount,
     },
   })
 }
@@ -63,23 +54,20 @@ export async function createReviewItem(data: {
   nextReview.setDate(nextReview.getDate() + 1)
 
   return prisma.reviewItem.create({
-    data: {
-      ...data,
-      nextReview,
-    },
+    data: { ...data, nextReview },
   })
 }
 
 export async function getReviewStats() {
-  const total = await prisma.reviewItem.count()
-  const due = await getDueReviewCount()
-  const avgEfactor = await prisma.reviewItem.aggregate({
-    _avg: { efactor: true },
-  })
+  const [total, due, agg] = await Promise.all([
+    prisma.reviewItem.count(),
+    getDueReviewCount(),
+    prisma.reviewItem.aggregate({ _avg: { efactor: true } }),
+  ])
 
   return {
     total,
     due,
-    avgEfactor: Math.round((avgEfactor._avg.efactor || 2.5) * 100) / 100,
+    avgEfactor: Math.round((agg._avg.efactor || 2.5) * 100) / 100,
   }
 }

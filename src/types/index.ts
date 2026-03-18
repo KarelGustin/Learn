@@ -5,7 +5,6 @@ export type ExerciseType =
   | 'TRUE_FALSE'
   | 'SHORT_ANSWER'
   | 'CODE_CHALLENGE'
-  | 'FILL_IN_BLANK'
 
 export type DifficultyTier =
   | 'INTRODUCTORY'
@@ -16,7 +15,7 @@ export type DifficultyTier =
 
 export type PlanItemType = 'LESSON' | 'REVIEW' | 'PROJECT' | 'EXERCISE' | 'REFLECTION'
 export type PlanItemStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED'
-export type ContentFormat = 'MARKDOWN' | 'VIDEO_URL' | 'INTERACTIVE' | 'EXTERNAL_LINK'
+export type ContentFormat = 'MARKDOWN' | 'VIDEO_URL' | 'INTERACTIVE'
 
 export interface MasteryUpdate {
   skillId: string

@@ -67,7 +67,7 @@ async function seedFounderPrompts(prisma: any) {
   for (let i = 0; i < prompts.length; i++) {
     const p = prompts[i];
     await prisma.founderPrompt.upsert({
-      where: { id: `fp_${p.weekNumber}` },
+      where: { weekNumber: p.weekNumber },
       update: { ...p, sortOrder: i + 1 },
       create: { id: `fp_${p.weekNumber}`, ...p, sortOrder: i + 1 },
     });
