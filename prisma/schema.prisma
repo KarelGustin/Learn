@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── CURRICULUM STRUCTURE ────────────────────────────
+
+model Domain {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  icon        String
+  color       String
+  sortOrder   Int
+  tracks      Track[]
+  skills      Skill[]
+  createdAt   DateTime @default(now())
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  domainId    String
+  domain      Domain   @relation(fields: [domainId], references: [id])
+  name        String
+  slug        String   @unique
+  description String
+  sortOrder   Int
+  startMonth  Int
+  endMonth    Int
+  modules     Module[]
+  createdAt   DateTime @default(now())
+}
+
+model Module {
+  id             String   @id @default(cuid())
+  trackId        String
+  track          Track    @relation(fields: [trackId], references: [id])
+  name           String
+  slug           String   @unique
+  description    String
+  difficulty     String   @default("FOUNDATIONAL")
+  sortOrder      Int
+  estimatedHours Float
+  units          Unit[]
+  projects       Project[]
+  createdAt      DateTime @default(now())
+}
+
+model Unit {
+  id               String   @id @default(cuid())
+  moduleId         String
+  module           Module   @relation(fields: [moduleId], references: [id])
+  name             String
+  slug             String   @unique
+  description      String
+  sortOrder        Int
+  estimatedMinutes Int
+  lessons          Lesson[]
+  createdAt        DateTime @default(now())
+}
+
+model Lesson {
+  id               String       @id @default(cuid())
+  unitId           String
+  unit             Unit         @relation(fields: [unitId], references: [id])
+  title            String
+  slug             String       @unique
+  content          String
+  contentFormat    String       @default("MARKDOWN")
+  sortOrder        Int
+  estimatedMinutes Int
+  skillIds         String       @default("")
+  exercises        Exercise[]
+  submissions      Submission[]
+  reviewItems      ReviewItem[]
+  createdAt        DateTime     @default(now())
+}
+
+model Exercise {
+  id            String    @id @default(cuid())
+  lessonId      String
+  lesson        Lesson    @relation(fields: [lessonId], references: [id])
+  type          String    @default("MULTIPLE_CHOICE")
+  question      String
+  options       String?
+  correctAnswer String
+  explanation   String
+  difficulty    String    @default("FOUNDATIONAL")
+  sortOrder     Int
+  skillId       String?
+  skill         Skill?    @relation(fields: [skillId], references: [id])
+  attempts      Attempt[]
+  createdAt     DateTime  @default(now())
+}
+
+// ─── PROJECTS ────────────────────────────────────────
+
+model Project {
+  id             String             @id @default(cuid())
+  moduleId       String
+  module         Module             @relation(fields: [moduleId], references: [id])
+  name           String
+  slug           String             @unique
+  description    String
+  difficulty     String             @default("FOUNDATIONAL")
+  estimatedHours Float
+  isCapstone     Boolean            @default(false)
+  skillIds       String             @default("")
+  milestones     ProjectMilestone[]
+  createdAt      DateTime           @default(now())
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id])
+  name        String
+  description String
+  sortOrder   Int
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+// ─── SKILLS & DEPENDENCIES ──────────────────────────
+
+model Skill {
+  id           String            @id @default(cuid())
+  domainId     String
+  domain       Domain            @relation(fields: [domainId], references: [id])
+  name         String
+  slug         String            @unique
+  description  String
+  category     String
+  dependsOn    SkillDependency[] @relation("DependentSkill")
+  dependedOnBy SkillDependency[] @relation("PrerequisiteSkill")
+  masteryRecord MasteryRecord?
+  exercises    Exercise[]
+  createdAt    DateTime          @default(now())
+}
+
+model SkillDependency {
+  id              String @id @default(cuid())
+  dependentId     String
+  dependent       Skill  @relation("DependentSkill", fields: [dependentId], references: [id])
+  prerequisiteId  String
+  prerequisite    Skill  @relation("PrerequisiteSkill", fields: [prerequisiteId], references: [id])
+  minMasteryLevel Int    @default(2)
+
+  @@unique([dependentId, prerequisiteId])
+}
+
+// ─── LEARNER PROGRESS ───────────────────────────────
+
+model MasteryRecord {
+  id              String    @id @default(cuid())
+  skillId         String    @unique
+  skill           Skill     @relation(fields: [skillId], references: [id])
+  level           Int       @default(0)
+  confidence      Float     @default(0.5)
+  totalAttempts   Int       @default(0)
+  correctAttempts Int       @default(0)
+  lastPracticed   DateTime?
+  lastLevelChange DateTime?
+  streakCorrect   Int       @default(0)
+  streakWrong     Int       @default(0)
+  updatedAt       DateTime  @updatedAt
+}
+
+model ReviewItem {
+  id         String    @id @default(cuid())
+  lessonId   String?
+  lesson     Lesson?   @relation(fields: [lessonId], references: [id])
+  skillId    String
+  question   String
+  answer     String
+  interval   Float     @default(1)
+  repetition Int       @default(0)
+  efactor    Float     @default(2.5)
+  nextReview DateTime
+  lastReview DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Submission {
+  id          String    @id @default(cuid())
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+  completed   Boolean   @default(false)
+  score       Float?
+  timeSpentMs Int
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Attempt {
+  id          String   @id @default(cuid())
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  answer      String
+  correct     Boolean
+  timeSpentMs Int
+  hints       Int      @default(0)
+  confidence  Int      @default(3)
+  createdAt   DateTime @default(now())
+}
+
+// ─── DAILY PLANNING ─────────────────────────────────
+
+model DailyPlan {
+  id            String         @id @default(cuid())
+  date          String         @unique
+  items         DailyPlanItem[]
+  totalMinutes  Int
+  actualMinutes Int?
+  completed     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+}
+
+model DailyPlanItem {
+  id               String    @id @default(cuid())
+  planId           String
+  plan             DailyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  type             String
+  referenceId      String
+  title            String
+  description      String?
+  estimatedMinutes Int
+  sortOrder        Int
+  status           String    @default("PENDING")
+  reason           String?
+  completedAt      DateTime?
+}
+
+// ─── STUDY SESSIONS & STREAKS ───────────────────────
+
+model StudySession {
+  id              String    @id @default(cuid())
+  startedAt       DateTime
+  endedAt         DateTime?
+  domainId        String?
+  totalMinutes    Int       @default(0)
+  lessonsCompleted Int      @default(0)
+  reviewsDone     Int       @default(0)
+  exercisesDone   Int       @default(0)
+}
+
+model Streak {
+  id             String   @id @default(cuid())
+  currentStreak  Int      @default(0)
+  longestStreak  Int      @default(0)
+  lastActiveDate String?
+  totalDaysActive Int     @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── REFLECTION & FOUNDER ───────────────────────────
+
+model ReflectionEntry {
+  id        String   @id @default(cuid())
+  date      String
+  mood      Int?
+  content   String
+  whatWentWell  String?
+  whatWasHard   String?
+  whatILearned  String?
+  tags      String?
+  promptId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FounderPrompt {
+  id          String @id @default(cuid())
+  weekNumber  Int
+  prompt      String
+  category    String
+  description String
+  sortOrder   Int
+}
+
+// ─── USER PREFERENCES ───────────────────────────────
+
+model UserSettings {
+  id                 String  @id @default(cuid())
+  displayName        String  @default("Learner")
+  dailyGoalMinutes   Int     @default(90)
+  preferredStartTime String  @default("09:00")
+  weekendMode        Boolean @default(false)
+  theme              String  @default("dark")
+  currentMonth       Int     @default(1)
+  onboardingComplete Boolean @default(false)
+}

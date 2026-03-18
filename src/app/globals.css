@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-zinc-800;
+  }
+
+  body {
+    @apply bg-zinc-950 text-zinc-50 antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(63 63 70);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(82 82 91);
+}
+
+.hljs {
+  @apply rounded-lg bg-zinc-900 p-4 text-sm;
+}
+
+.katex-display {
+  @apply my-4 overflow-x-auto;
+}
+
+.lesson-content h1 { @apply text-2xl font-bold text-zinc-50 mt-8 mb-4; }
+.lesson-content h2 { @apply text-xl font-semibold text-zinc-100 mt-6 mb-3; }
+.lesson-content h3 { @apply text-lg font-medium text-zinc-200 mt-4 mb-2; }
+.lesson-content p { @apply text-zinc-300 leading-relaxed mb-4; }
+.lesson-content ul { @apply list-disc pl-6 mb-4 text-zinc-300; }
+.lesson-content ol { @apply list-decimal pl-6 mb-4 text-zinc-300; }
+.lesson-content li { @apply mb-1; }
+.lesson-content strong { @apply text-zinc-100 font-semibold; }
+.lesson-content code { @apply rounded bg-zinc-800 px-1.5 py-0.5 text-sm text-emerald-400 font-mono; }
+.lesson-content pre { @apply rounded-lg bg-zinc-900 p-4 mb-4 overflow-x-auto; }
+.lesson-content pre code { @apply bg-transparent p-0; }
+.lesson-content blockquote { @apply border-l-4 border-emerald-600 pl-4 italic text-zinc-400; }
